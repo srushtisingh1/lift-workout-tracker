@@ -2,6 +2,8 @@
 
 A personal PWA workout tracker built for daily use on iPhone.
 
+**[Open the app](https://srushtisingh1.github.io/lift-workout-tracker/workout_tracker.html)**
+
 ## Features
 - Log workouts by muscle group
 - Track weight over time
