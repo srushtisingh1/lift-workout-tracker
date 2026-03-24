@@ -310,15 +310,20 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
   <div style="height:12px"></div>
   <div class="prog-card">
     <h4>⚖️ Weight Log</h4>
+    <div class="weight-row" style="margin-bottom:8px">
+      <input class="weight-inp" type="number" id="w-start" placeholder="Start (lbs)" step="0.1" inputmode="decimal" style="font-size:13px">
+      <input class="weight-inp" type="number" id="w-goal" placeholder="Goal (lbs)" step="0.1" inputmode="decimal" style="font-size:13px">
+      <button class="log-btn" onclick="saveGoalSettings()">Set</button>
+    </div>
     <div class="weight-row">
-      <input class="weight-inp" type="number" id="w-input" placeholder="Weight in lbs" step="0.1" inputmode="decimal">
+      <input class="weight-inp" type="number" id="w-input" placeholder="Today's weight (lbs)" step="0.1" inputmode="decimal">
       <button class="log-btn" onclick="logWeight()">Log</button>
     </div>
     <div id="w-history"></div>
     <div class="goal-track">
-      <div class="goal-labels"><span>Start: 167 lbs</span><span>Goal: 157 lbs</span></div>
+      <div class="goal-labels"><span id="goal-start-label">Start: — lbs</span><span id="goal-end-label">Goal: — lbs</span></div>
       <div class="goal-track-bar"><div class="goal-fill" id="goal-fill" style="width:0%"></div></div>
-      <div class="goal-note" id="goal-note">Log your first weight to begin</div>
+      <div class="goal-note" id="goal-note">Set your start and goal weight above</div>
     </div>
   </div>
   <div class="prog-card">
@@ -529,9 +534,9 @@ function buildExercises(){
       for(let s=1;s<=ph.sets;s++){
         const r=saved['s'+s+'r']||'',w=saved['s'+s+'w']||'',n=saved['s'+s+'n']||'';
         rows+=`<div class="set-row"><div class="set-num">${s}</div>
-          <input class="set-inp" type="number" placeholder="${ph.reps}" value="${r}" id="${day}_${ex.id}_s${s}r" inputmode="numeric">
-          <input class="set-inp" type="number" placeholder="lbs" value="${w}" id="${day}_${ex.id}_s${s}w" inputmode="decimal" onblur="checkPR('${ex.id}','${day}',${s})">
-          <input class="set-inp" type="text" placeholder="—" value="${n}" id="${day}_${ex.id}_s${s}n" style="font-size:11px">
+          <input class="set-inp" type="number" placeholder="${ph.reps}" value="${r}" id="${day}_${ex.id}_s${s}r" inputmode="numeric" oninput="autoSaveSets('${day}','${ex.id}')">
+          <input class="set-inp" type="number" placeholder="lbs" value="${w}" id="${day}_${ex.id}_s${s}w" inputmode="decimal" oninput="autoSaveSets('${day}','${ex.id}')" onblur="checkPR('${ex.id}','${day}',${s})">
+          <input class="set-inp" type="text" placeholder="—" value="${n}" id="${day}_${ex.id}_s${s}n" style="font-size:11px" oninput="autoSaveSets('${day}','${ex.id}')">
         </div>`;
       }
       return `<div class="ex-card">
@@ -575,6 +580,17 @@ function checkPR(exId,day,setNum){
     showToast('🏆 New PR! '+exName+' — '+wVal+'lbs');
     buildExercises();
   }
+}
+
+function autoSaveSets(day,exId){
+  const ph=PHASES[curPhase];
+  const sd={};
+  for(let s=1;s<=ph.sets;s++){
+    sd['s'+s+'r']=document.getElementById(day+'_'+exId+'_s'+s+'r')?.value||'';
+    sd['s'+s+'w']=document.getElementById(day+'_'+exId+'_s'+s+'w')?.value||'';
+    sd['s'+s+'n']=document.getElementById(day+'_'+exId+'_s'+s+'n')?.value||'';
+  }
+  S.set('ex_'+day+'_'+exId+'_p'+curPhase,sd);
 }
 
 function countPRs(){
@@ -714,9 +730,28 @@ function logWeight(){
   updateProgressView();showToast('Weight logged ⚖️');
 }
 
+function saveGoalSettings(){
+  const s=parseFloat(document.getElementById('w-start')?.value);
+  const g=parseFloat(document.getElementById('w-goal')?.value);
+  if(!s||!g||s<50||s>400||g<50||g>400){showToast('Enter valid weights');return;}
+  S.set('weight_settings',{start:s,goal:g});
+  updateProgressView();
+  showToast('Goal saved ✓');
+}
+
 function updateProgressView(){
   const log=S.get('weight_log')||[];
-  const START=167,GOAL=157;
+  const settings=S.get('weight_settings')||{};
+  const START=settings.start||null;
+  const GOAL=settings.goal||null;
+  const startInp=document.getElementById('w-start');
+  const goalInp=document.getElementById('w-goal');
+  if(startInp&&!startInp.value)startInp.value=START||'';
+  if(goalInp&&!goalInp.value)goalInp.value=GOAL||'';
+  const startLabel=document.getElementById('goal-start-label');
+  const goalLabel=document.getElementById('goal-end-label');
+  if(startLabel)startLabel.textContent=START?'Start: '+START+' lbs':'Start: — lbs';
+  if(goalLabel)goalLabel.textContent=GOAL?'Goal: '+GOAL+' lbs':'Goal: — lbs';
   const wh=document.getElementById('w-history');
   if(wh){
     wh.innerHTML=log.slice(0,6).map((e,i)=>{
@@ -727,11 +762,18 @@ function updateProgressView(){
       return `<div class="w-hist-item"><span style="color:var(--muted)">${d}</span><strong>${e.w} lbs</strong>${delta}</div>`;
     }).join('');
   }
-  const current=log.length?log[0].w:START;
-  const lost=Math.max(0,START-current);
-  const pct=Math.min(100,(lost/10)*100);
-  const fill=document.getElementById('goal-fill');if(fill)fill.style.width=pct+'%';
+  const fill=document.getElementById('goal-fill');
   const note=document.getElementById('goal-note');
+  if(!START||!GOAL){
+    if(fill)fill.style.width='0%';
+    if(note)note.innerHTML='Set your start and goal weight above';
+    renderCalendar();return;
+  }
+  const current=log.length?log[0].w:START;
+  const totalDiff=Math.abs(START-GOAL);
+  const lost=START>GOAL?Math.max(0,START-current):Math.max(0,current-START);
+  const pct=Math.min(100,(lost/totalDiff)*100);
+  if(fill)fill.style.width=pct+'%';
   if(note){
     const rem=Math.max(0,current-GOAL).toFixed(1);
     note.innerHTML=rem>0?`<strong>${lost>0?lost.toFixed(1)+' lbs lost':'No change yet'}</strong> · ${rem} lbs to goal`:'<strong>🎉 Goal reached!</strong>';
