@@ -182,6 +182,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="identity-phrase" id="identity-phrase">I am someone who shows up for herself.</div>
     </div>
   </div>
+  <div id="cycle-banner" style="display:none;margin:8px 20px 0;background:linear-gradient(135deg,rgba(160,120,200,0.1),rgba(100,160,220,0.07));border:1px solid rgba(160,120,200,0.22);border-radius:var(--radius);padding:12px 16px;display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span id="cycle-phase-icon" style="font-size:16px"></span>
+      <span id="cycle-phase-label" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600"></span>
+    </div>
+    <div id="cycle-phase-text" style="font-size:13px;color:var(--text);line-height:1.45"></div>
+  </div>
   <div class="phase-strip" id="phase-strip"></div>
   <div class="content">
     <div class="day-tabs">
@@ -347,6 +354,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     </div>
     <div id="backup-status" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center"></div>
   </div>
+  <div class="prog-card">
+    <h4>🌙 Cycle Sync <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">· optional</span></h4>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Get science-backed phase cues on your workout screen. Leave blank to skip.</p>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">First day of last period</div>
+    <div class="weight-row" style="margin-bottom:8px">
+      <input class="weight-inp" id="cycle-start" type="date" style="font-size:13px;flex:2">
+      <input class="weight-inp" id="cycle-length" type="number" placeholder="Cycle length" value="28" min="21" max="45" style="font-size:13px;flex:1">
+    </div>
+    <button class="log-btn" style="width:100%;padding:12px;font-size:13px" onclick="saveCycleSettings()">Save Cycle Info</button>
+    <div id="cycle-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
+  </div>
   <div style="height:8px"></div>
 </div>
 
@@ -465,6 +483,107 @@ const DAY_QUOTES = {
   ],
 };
 
+const CYCLE_QUOTES={
+  menstrual:[
+    'Your body is resetting. Gentle movement today is enough.',
+    'Rest and movement can coexist. Let your body lead.',
+    'Even elite athletes modify on day 1. Training smart counts.',
+    'Low and slow still counts. You showed up.',
+    'Honor the reset. You will be stronger for it next week.',
+    'Cramps are real. So is your resilience. Go at your own pace.',
+    'Day 1 of your cycle is still day 1 of the week. That matters.',
+  ],
+  follicular:[
+    'Estrogen is rising and so is your energy. Lean into it.',
+    'Your body recovers faster right now — a little extra push pays off.',
+    'Follicular phase is nature\'s green light. Use it.',
+    'Muscle synthesis is higher this week. Make it count.',
+    'Energy is on your side. Set the tone for your whole cycle.',
+    'This is the phase where hard work compounds fastest.',
+    'Coming out of the reset stronger. That\'s the follicular phase.',
+  ],
+  ovulatory:[
+    'Peak power window. Your strongest phase — go for it.',
+    'Estrogen is at its peak. Your PR might be today.',
+    'Your body is primed. Warm up well and lift heavy.',
+    'Three days of peak strength. Don\'t leave it on the table.',
+    'Science says you\'re at your strongest right now. Trust it.',
+    'Ovulation = your body\'s performance peak. This is it.',
+  ],
+  luteal:[
+    'Higher effort for the same work is real — not weakness. Fuel well.',
+    'Progesterone is up. Recovery matters more this week.',
+    'Your RPE is genuinely higher right now. That\'s physiology, not fitness.',
+    'Carbs are your friend this week. Don\'t under-fuel.',
+    'Showing up in your luteal phase takes more. You\'re doing it anyway.',
+    'The hard phase is where mental strength is built. You\'re in it.',
+    'Luteal consistency is what separates the committed. That\'s you.',
+    'Your body is working harder in the background. Honor that with fuel and rest.',
+  ],
+};
+
+const CYCLE_META={
+  menstrual:{label:'Menstrual Phase',icon:'🌑'},
+  follicular:{label:'Follicular Phase',icon:'🌒'},
+  ovulatory:{label:'Ovulatory Phase',icon:'🌕'},
+  luteal:{label:'Luteal Phase',icon:'🌖'},
+};
+
+function getCyclePhase(){
+  const c=S.get('cycle_settings');
+  if(!c||!c.start)return null;
+  const start=new Date(c.start);
+  const length=c.length||28;
+  const daysSince=Math.floor((new Date()-start)/86400000);
+  if(daysSince<0)return null;
+  const cycleDay=(daysSince%length)+1;
+  let phase;
+  if(cycleDay<=5)phase='menstrual';
+  else if(cycleDay<=13)phase='follicular';
+  else if(cycleDay<=16)phase='ovulatory';
+  else phase='luteal';
+  return{phase,cycleDay,length};
+}
+
+function renderCyclePhase(){
+  const banner=document.getElementById('cycle-banner');
+  if(!banner)return;
+  const info=getCyclePhase();
+  if(!info){banner.style.display='none';return;}
+  const meta=CYCLE_META[info.phase];
+  const quotes=CYCLE_QUOTES[info.phase];
+  const dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/86400000);
+  const quote=quotes[dayOfYear%quotes.length];
+  document.getElementById('cycle-phase-icon').textContent=meta.icon;
+  document.getElementById('cycle-phase-label').textContent=meta.label+' · Day '+info.cycleDay;
+  document.getElementById('cycle-phase-text').textContent=quote;
+  banner.style.display='block';
+}
+
+function saveCycleSettings(){
+  const start=document.getElementById('cycle-start')?.value;
+  const length=parseInt(document.getElementById('cycle-length')?.value)||28;
+  if(!start){showToast('Enter your last period start date');return;}
+  S.set('cycle_settings',{start,length});
+  renderCyclePhase();
+  const info=getCyclePhase();
+  const status=document.getElementById('cycle-status');
+  if(status&&info)status.textContent='✓ Saved · Currently day '+info.cycleDay+' of '+length+' ('+CYCLE_META[info.phase].label+')';
+  showToast('Cycle info saved 🌙');
+}
+
+function loadCycleSetup(){
+  const c=S.get('cycle_settings');
+  if(!c)return;
+  const startInp=document.getElementById('cycle-start');
+  const lenInp=document.getElementById('cycle-length');
+  if(startInp&&c.start)startInp.value=c.start;
+  if(lenInp&&c.length)lenInp.value=c.length;
+  const info=getCyclePhase();
+  const status=document.getElementById('cycle-status');
+  if(status&&info)status.textContent='Currently day '+info.cycleDay+' of '+c.length+' ('+CYCLE_META[info.phase].label+')';
+}
+
 const BADGES=[
   {id:'first',icon:'🌱',name:'First Rep',req:(n)=>n>=1},
   {id:'w7',icon:'7️⃣',name:'7 Sessions',req:(n,s)=>s>=7},
@@ -488,7 +607,7 @@ const S={
 
 window.addEventListener('load',()=>{
   document.getElementById('workout-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-  buildPhaseStrip();buildExercises();renderIdentity();updateStreakChip();renderCalendar();
+  buildPhaseStrip();buildExercises();renderIdentity();updateStreakChip();renderCalendar();renderCyclePhase();
 });
 
 function renderIdentity(forceDay){
@@ -865,7 +984,8 @@ function switchView(view){
   document.getElementById('nb-'+view).classList.add('active');
   if(view==='stats')updateStatsView();
   if(view==='history')renderHistory();
-  if(view==='progress')updateProgressView();
+  if(view==='progress'){updateProgressView();loadCycleSetup();}
+  if(view==='workout')renderCyclePhase();
 }
 
 function showToast(msg){
