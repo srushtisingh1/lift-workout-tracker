@@ -343,6 +343,17 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center"></div>
   </div>
   <div class="prog-card">
+    <h4>🌙 Cycle Sync <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">· optional</span></h4>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Get science-backed phase cues on your workout screen. Leave blank to skip.</p>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">First day of last period</div>
+    <div class="weight-row" style="margin-bottom:8px">
+      <input class="weight-inp" id="cycle-start" type="date" style="font-size:13px;flex:2">
+      <input class="weight-inp" id="cycle-length" type="number" placeholder="Cycle length" value="28" min="21" max="45" style="font-size:13px;flex:1">
+    </div>
+    <button class="log-btn" style="width:100%;padding:12px;font-size:13px" onclick="saveCycleSettings()">Save Cycle Info</button>
+    <div id="cycle-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
+  </div>
+  <div class="prog-card">
     <h4>💾 Backup &amp; Restore</h4>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Export your data to a file saved in iCloud/Files. Import it anytime to restore — even after reinstalling the app.</p>
     <div style="display:flex;gap:8px">
@@ -353,17 +364,6 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       </label>
     </div>
     <div id="backup-status" style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center"></div>
-  </div>
-  <div class="prog-card">
-    <h4>🌙 Cycle Sync <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">· optional</span></h4>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Get science-backed phase cues on your workout screen. Leave blank to skip.</p>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.07em">First day of last period</div>
-    <div class="weight-row" style="margin-bottom:8px">
-      <input class="weight-inp" id="cycle-start" type="date" style="font-size:13px;flex:2">
-      <input class="weight-inp" id="cycle-length" type="number" placeholder="Cycle length" value="28" min="21" max="45" style="font-size:13px;flex:1">
-    </div>
-    <button class="log-btn" style="width:100%;padding:12px;font-size:13px" onclick="saveCycleSettings()">Save Cycle Info</button>
-    <div id="cycle-status" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
   </div>
   <div style="height:8px"></div>
 </div>
