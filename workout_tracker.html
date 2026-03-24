@@ -598,6 +598,11 @@ function countPRs(){
 }
 
 function saveWorkout(day){
+  const today=new Date().toDateString();
+  const hist=S.get('workout_history')||[];
+  if(hist.some(w=>w.day===day&&new Date(w.timestamp).toDateString()===today)){
+    showToast('Already logged today! Delete the existing entry in History to re-log.');return;
+  }
   const ph=PHASES[curPhase];
   const ts=new Date().toISOString();
   const result={day,phase:curPhase,timestamp:ts,exercises:[]};
@@ -613,17 +618,36 @@ function saveWorkout(day){
     S.set('ex_'+day+'_'+ex.id+'_p'+curPhase,sd);
     if(hasData)result.exercises.push({name:ex.name,id:ex.id,sets:sd,numSets:ph.sets});
   });
-  const hist=S.get('workout_history')||[];
   hist.unshift(result);S.set('workout_history',hist);
   const stats=S.get('workout_stats')||{total:0,streak:0,lastDay:null,startDate:ts};
   stats.total=(stats.total||0)+1;
-  const today=new Date().toDateString();
   if(stats.lastDay!==today){stats.streak=(stats.streak||0)+1;stats.lastDay=today;}
   S.set('workout_stats',stats);
   const newBadges=checkBadges(stats.total,stats.streak);
   updateStreakChip();renderIdentity();
   if(newBadges.length){setTimeout(()=>showCelebration(newBadges[0]),400);}
   else{const m=['Workout saved! 💪','Crushed it! 🔥','Done! You showed up! ✨','Strong work 💎'];showToast(m[Math.floor(Math.random()*m.length)]);}
+}
+
+function recalcStatsFromHistory(hist){
+  const total=hist.length;
+  const uniqueDays=[...new Set(hist.map(w=>new Date(w.timestamp).toDateString()))];
+  const streak=uniqueDays.length;
+  const lastDay=uniqueDays.sort((a,b)=>new Date(b)-new Date(a))[0]||null;
+  const startDate=hist.length?hist[hist.length-1].timestamp:new Date().toISOString();
+  return{total,streak,lastDay,startDate};
+}
+
+function deleteWorkout(idx){
+  if(!confirm('Delete this session? This will update your stats.'))return;
+  const hist=S.get('workout_history')||[];
+  hist.splice(idx,1);
+  S.set('workout_history',hist);
+  const stats=recalcStatsFromHistory(hist);
+  S.set('workout_stats',stats);
+  updateStreakChip();
+  renderHistory();
+  showToast('Session deleted');
 }
 
 function checkBadges(total,streak){
@@ -814,7 +838,7 @@ function renderHistory(){
   if(!cont)return;
   if(!hist.length){cont.innerHTML=`<div class="empty-state"><div class="empty-icon">🏋️</div><p style="font-size:14px">No sessions saved yet.<br>Complete a workout and hit Save!</p></div>`;return;}
   const dayNames={mon:'Monday — Lower Body',wed:'Wednesday — Upper Body',fri:'Friday — Post. Chain'};
-  cont.innerHTML=hist.map(w=>{
+  cont.innerHTML=hist.map((w,idx)=>{
     const d=new Date(w.timestamp).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
     const exHtml=(w.exercises||[]).map(e=>{
       const sets=Array.from({length:e.numSets||3},(_,i)=>{
@@ -823,7 +847,7 @@ function renderHistory(){
       }).filter(Boolean).join(' · ');
       return sets?`<div class="hist-ex"><strong>${e.name}:</strong> ${sets}</div>`:`<div class="hist-ex"><strong>${e.name}</strong></div>`;
     }).join('');
-    return `<div class="hist-entry"><div class="hist-date">${d} · Phase ${w.phase+1}</div><div class="hist-tag ${w.day}">${dayNames[w.day]||w.day}</div><div>${exHtml||'<span style="color:var(--muted);font-size:12px">No data logged</span>'}</div></div>`;
+    return `<div class="hist-entry"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="hist-date">${d} · Phase ${w.phase+1}</div><div class="hist-tag ${w.day}">${dayNames[w.day]||w.day}</div></div><button onclick="deleteWorkout(${idx})" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1" title="Delete session">×</button></div><div>${exHtml||'<span style="color:var(--muted);font-size:12px">No data logged</span>'}</div></div>`;
   }).join('');
 }
 
